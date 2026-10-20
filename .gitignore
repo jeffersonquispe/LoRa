@@ -11,9 +11,6 @@ venv/
 # --- Logs ---
 *.log
 
-# --- Clon upstream de Resemble AI (se instala/pinea aparte, no se re-sube) ---
-chatterbox/
-
 # --- Pesos del modelo base (3 GB; se descargan solos de Hugging Face) ---
 ckpt_latam/
 *.pth
