@@ -14,29 +14,20 @@ venv/
 # --- Clon upstream de Resemble AI (se instala/pinea aparte, no se re-sube) ---
 chatterbox/
 
-# --- Pesos y checkpoints (van a Hugging Face Hub, no a git) ---
+# --- Pesos del modelo base (3 GB; se descargan solos de Hugging Face) ---
 ckpt_latam/
-lora_out/
-lora_data/
-*.safetensors
-*.pt
 *.pth
 *.ckpt
 *.bin
 
-# --- Audios y datasets pesados (van a Hugging Face Datasets) ---
-dataset_audios/
-audios_elevenlabs/
+# --- Voces clonadas de hablantes reales de datasets de terceros (pendiente de revisar licencia/consentimiento) ---
 historias_clonadas/
-dialogos_elevenlabs/
 prueba_latam/
-lora_prueba/
-lora_inferencias/
-*.mp3
-*.wav
-*.flac
+
+# --- Empaquetados locales ---
+para_drive/
 *.rar
 *.zip
 
 # --- Se conservan en git (texto pequeño) ---
-# dataset_frases.csv, dataset_dialogos.csv, scripts .py, ENTRENAMIENTO_LORA.md, .env.example
+# scripts, CSV, ENTRENAMIENTO_LORA.md, adaptador (lora_out/), datos de entrenamiento y audios de prueba
