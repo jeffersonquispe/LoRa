@@ -1,0 +1,42 @@
+# --- Secretos: NUNCA subir ---
+.env
+*.key
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- Logs ---
+*.log
+
+# --- Clon upstream de Resemble AI (se instala/pinea aparte, no se re-sube) ---
+chatterbox/
+
+# --- Pesos y checkpoints (van a Hugging Face Hub, no a git) ---
+ckpt_latam/
+lora_out/
+lora_data/
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.bin
+
+# --- Audios y datasets pesados (van a Hugging Face Datasets) ---
+dataset_audios/
+audios_elevenlabs/
+historias_clonadas/
+dialogos_elevenlabs/
+prueba_latam/
+lora_prueba/
+lora_inferencias/
+*.mp3
+*.wav
+*.flac
+*.rar
+*.zip
+
+# --- Se conservan en git (texto pequeño) ---
+# dataset_frases.csv, dataset_dialogos.csv, scripts .py, ENTRENAMIENTO_LORA.md, .env.example
