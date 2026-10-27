@@ -6,3 +6,5 @@
 !tts_app/api.py
 !tts_app/app.py
 !docker/entrypoint.sh
+!lora_out_2voces/
+!tts_app/voces/

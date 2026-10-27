@@ -95,6 +95,22 @@ UI en http://localhost:8501 y API en http://localhost:8000/docs. Hace falta GPU 
 tarda (descarga + carga del modelo); los pesos base quedan en un volumen. Sin claves AWS no se descarga nada:
 monta tus carpetas `lora_out*/` y `tts_app/voces/` como volúmenes. Subir pesos nuevos al bucket: `python pesos_s3.py subir lora_out_X`.
 
+### Imagen lista (un solo comando)
+
+El último stage del `Dockerfile` (`standalone`) trae la API con el adaptador `lora_out_2voces` y las dos voces dentro, sin
+claves AWS. Probada en local con GPU: genera audio con `spk_f01` y `spk_m01`.
+
+```bash
+docker build -t ghcr.io/<usuario>/bessage-lora:latest .
+docker run --gpus all -p 8000:8000 -v ckpt_latam:/app/ckpt_latam ghcr.io/<usuario>/bessage-lora:latest
+```
+
+Los pesos base (~3 GB) no van en la imagen: la primera petición los baja de Hugging Face (~5 min); el volumen
+`ckpt_latam` los conserva. La imagen pesa ~11.7 GB, así que Docker necesita unos 25 GB libres para construirla.
+Publicarla: `gh auth refresh -s write:packages`, `gh auth token | docker login ghcr.io -u <usuario> --password-stdin`
+y `docker push`. Los paquetes de ghcr nacen **privados**: contiene un adaptador entrenado en parte con un corpus de
+terceros (`es_ve_female`) y un clip de esa voz, así que no la hagas pública sin revisar su licencia.
+
 ## Requisitos
 
 - GPU NVIDIA (probado en RTX 3060 Laptop, 6 GB; el entrenamiento usa ~3.7 GB).
