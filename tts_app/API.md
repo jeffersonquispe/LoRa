@@ -29,7 +29,8 @@ Sin clave configurada en el servidor, no se pide nada. Una clave ausente o incor
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/health` | Estado del servicio. Sin autenticación. |
+| GET | `/health` | Liveness: el proceso responde. Sin autenticación. |
+| GET | `/listo` | Readiness: 200 solo cuando el modelo está cargado. Sin autenticación. |
 | GET | `/modelos` | Modelos disponibles y cuál está cargado. |
 | GET | `/voces` | Voces de referencia disponibles. |
 | POST | `/voces` | Sube una voz de referencia. |
@@ -39,10 +40,23 @@ Sin clave configurada en el servidor, no se pide nada. Una clave ausente o incor
 ### `GET /health`
 
 ```json
-{ "ok": true, "modelo_cargado": "lora_out_2voces", "cuda": true }
+{ "ok": true, "modelo_cargado": "lora_out_2voces", "cuda": true, "estado": "listo" }
 ```
 
-`modelo_cargado` es `null` hasta la primera generación. Úsalo como health check.
+`estado` es `bajo_demanda`, `cargando`, `listo` o `error: ...`. Responde 200 en cuanto el proceso arranca, **aunque el
+modelo aún se esté cargando**: úsalo como *liveness*. Para saber si ya se puede generar, usa `/listo`.
+
+### `GET /listo`
+
+200 `{ "listo": true, "modelo_cargado": "lora_out_2voces" }` cuando el modelo precargado está en la GPU y calentado;
+503 `{ "detail": "No listo: cargando" }` mientras tanto. Sin autenticación. Con la variable `PRECARGAR_MODELO` (la imagen
+Docker `standalone` la trae con `lora_out_2voces`) el modelo se carga al arrancar y se hace una generación corta de
+calentamiento, de modo que la primera petición real tarda unos segundos en lugar de minutos. Sin esa variable responde
+200 siempre y el modelo se carga con la primera petición.
+
+En Salad, configura la **readiness probe** como HTTP `GET /listo` en el puerto 8000: así no recibe tráfico hasta que el
+modelo está listo. Ten en cuenta que la imagen baja ~3 GB de pesos base en el primer arranque de cada nodo (unos 3
+minutos): ajusta el tiempo máximo de arranque de la sonda en consecuencia.
 
 ### `GET /modelos`
 

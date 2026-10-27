@@ -37,6 +37,7 @@ ID_VALIDO = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 EXT_AUDIO = (".wav", ".mp3", ".flac", ".ogg")
 MAX_CARACTERES = 600
 API_KEY = os.environ.get("TTS_API_KEY")
+PRECARGAR = os.environ.get("PRECARGAR_MODELO", "")  # modelo a cargar y calentar al arrancar ("" = bajo demanda)
 
 app = FastAPI(title="Chatterbox TTS (Latam + LoRA)", version="1.0")
 _cabecera = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -94,6 +95,7 @@ class Gestor:
     def __init__(self):
         self.modelo = None
         self.nombre = None
+        self.estado = "bajo_demanda"  # bajo_demanda | cargando | listo | error: ...
         self.lock = threading.Lock()
 
     def obtener(self, nombre: str):
@@ -116,6 +118,29 @@ gestor = Gestor()
 registro_lock = threading.Lock()
 
 
+def precargar(nombre: str) -> None:
+    """Carga el modelo y hace una generación corta para calentarlo (la primera petición real llega ya rápida)."""
+    gestor.estado = "cargando"
+    try:
+        with gestor.lock:
+            m = gestor.obtener(nombre)
+            m.generate("Hola.", language_id="es", audio_prompt_path=VOZ_POR_DEFECTO)
+        gestor.estado = "listo"
+        print(f"[precarga] {nombre} listo", flush=True)
+    except Exception as e:  # la API sigue viva: las peticiones cargarán el modelo bajo demanda
+        gestor.estado = f"error: {e}"
+        print(f"[precarga] falló: {e}", flush=True)
+
+
+@app.on_event("startup")
+def al_arrancar() -> None:
+    if PRECARGAR:
+        if PRECARGAR not in listar_modelos():
+            gestor.estado = f"error: modelo '{PRECARGAR}' no existe"
+        else:
+            threading.Thread(target=precargar, args=(PRECARGAR,), daemon=True).start()
+
+
 def ruta_voz(voz: str) -> str:
     """`voz` puede ser 'por_defecto', un ID registrado en voces.json o el nombre de un archivo de voces/."""
     if voz == "por_defecto":
@@ -131,7 +156,17 @@ def ruta_voz(voz: str) -> str:
 # ---------- rutas ----------
 @app.get("/health")
 def health():
-    return {"ok": True, "modelo_cargado": gestor.nombre, "cuda": torch.cuda.is_available()}
+    """Liveness: el proceso responde. Para saber si el modelo ya está cargado, usa /listo."""
+    return {"ok": True, "modelo_cargado": gestor.nombre, "cuda": torch.cuda.is_available(), "estado": gestor.estado}
+
+
+@app.get("/listo")
+def listo():
+    """Readiness: 200 solo cuando el modelo precargado está en GPU y calentado; 503 mientras tanto.
+    Sin PRECARGAR_MODELO responde 200 siempre (el modelo se carga con la primera petición)."""
+    if gestor.estado in ("bajo_demanda", "listo"):
+        return {"listo": True, "modelo_cargado": gestor.nombre}
+    raise HTTPException(503, f"No listo: {gestor.estado}")
 
 
 @app.get("/modelos", dependencies=[Depends(verificar)])

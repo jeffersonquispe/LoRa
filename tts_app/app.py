@@ -12,17 +12,23 @@ st.set_page_config(page_title="Chatterbox TTS", page_icon="🎙️", layout="cen
 
 API_URL = os.environ.get("TTS_API_URL", "http://localhost:8000")
 API_KEY = os.environ.get("TTS_API_KEY", "")
+SALAD_KEY = os.environ.get("SALAD_API_KEY", "")
+
+
+def cabeceras(clave, salad):
+    """X-API-Key para la API; Salad-Api-Key para el gateway de Salad (si el despliegue tiene autenticación)."""
+    return {**({"X-API-Key": clave} if clave else {}), **({"Salad-Api-Key": salad} if salad else {})}
 
 
 def llamar(metodo, ruta, **kw):
-    cab = {"X-API-Key": st.session_state.get("clave", API_KEY)} if st.session_state.get("clave", API_KEY) else {}
+    cab = cabeceras(st.session_state.get("clave", API_KEY), st.session_state.get("salad", SALAD_KEY))
     return requests.request(metodo, st.session_state.get("url", API_URL).rstrip("/") + ruta,
                             headers=cab, timeout=kw.pop("timeout", 30), **kw)
 
 
 @st.cache_data(ttl=10, show_spinner=False)
-def catalogo(url, clave):
-    cab = {"X-API-Key": clave} if clave else {}
+def catalogo(url, clave, salad=""):
+    cab = cabeceras(clave, salad)
     g = lambda r: requests.get(url.rstrip("/") + r, headers=cab, timeout=10)
     modelos, voces, idiomas = g("/modelos"), g("/voces"), g("/idiomas")
     for r in (modelos, voces, idiomas):
@@ -38,9 +44,10 @@ with st.sidebar:
     st.header("Conexión")
     st.session_state["url"] = st.text_input("URL de la API", API_URL)
     st.session_state["clave"] = st.text_input("API key (si la hay)", API_KEY, type="password")
+    st.session_state["salad"] = st.text_input("Salad-Api-Key (si es un despliegue en Salad)", SALAD_KEY, type="password")
 
 try:
-    info_modelos, voces, idiomas = catalogo(st.session_state["url"], st.session_state["clave"])
+    info_modelos, voces, idiomas = catalogo(st.session_state["url"], st.session_state["clave"], st.session_state["salad"])
 except Exception as e:
     st.title("🎙️ Chatterbox TTS")
     st.error(f"No se pudo conectar con la API en {st.session_state['url']}.\n\n"

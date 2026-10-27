@@ -105,11 +105,28 @@ docker build -t ghcr.io/<usuario>/bessage-lora:latest .
 docker run --gpus all -p 8000:8000 -v ckpt_latam:/app/ckpt_latam ghcr.io/<usuario>/bessage-lora:latest
 ```
 
-Los pesos base (~3 GB) no van en la imagen: la primera petición los baja de Hugging Face (~5 min); el volumen
+La imagen precarga el modelo al arrancar (`PRECARGAR_MODELO`): `GET /listo` da 503 hasta que está listo (úsalo como
+*readiness probe*, p. ej. en Salad) y la primera generación tarda segundos. Los pesos base (~3 GB) no van en la
+imagen: se bajan de Hugging Face al arrancar (~3 min la primera vez); el volumen
 `ckpt_latam` los conserva. La imagen pesa ~11.7 GB, así que Docker necesita unos 25 GB libres para construirla.
 Publicarla: `gh auth refresh -s write:packages`, `gh auth token | docker login ghcr.io -u <usuario> --password-stdin`
 y `docker push`. Los paquetes de ghcr nacen **privados**: contiene un adaptador entrenado en parte con un corpus de
 terceros (`es_ve_female`) y un clip de esa voz, así que no la hagas pública sin revisar su licencia.
+
+### Exponer la API y el Streamlit con ngrok
+
+Con la API en el puerto 8000 y el Streamlit en el 8501 (en local o en Docker):
+
+```bash
+# .env: NGROK_AUTHTOKEN, NGROK_UI_USER, NGROK_UI_PASS y TTS_API_KEY (ver .env.example)
+python iniciar_ngrok.py      # imprime las dos URLs públicas; Ctrl+C las cierra
+```
+
+- El **Streamlit** queda detrás de usuario y contraseña de ngrok (no tiene login propio).
+- La **API** se protege con `TTS_API_KEY`: arráncala con esa variable (`-e TTS_API_KEY=...` en `docker run`) y manda la clave en
+  `X-API-Key`. Sin clave, la API queda abierta a internet y cualquiera usa tu GPU.
+- Con el plan gratis, ngrok muestra una página de aviso a los navegadores; los clientes de la API deben mandar la cabecera
+  `ngrok-skip-browser-warning: 1`. Las URLs cambian en cada ejecución.
 
 ## Requisitos
 

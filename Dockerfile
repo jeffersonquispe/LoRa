@@ -23,14 +23,14 @@ RUN pip install -e chatterbox \
 
 COPY carga_ligera.py pesos_s3.py ./
 COPY tts_app/api.py tts_app/
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint.sh docker/serve.py /
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
     CMD python -c "import urllib.request as u; u.urlopen('http://localhost:8000/health', timeout=4)" || exit 1
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["python", "-m", "uvicorn", "api:app", "--app-dir", "tts_app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "/serve.py"]
 
 # ---------- UI ----------
 FROM python:3.12-slim AS ui
@@ -47,5 +47,6 @@ CMD ["streamlit", "run", "tts_app/app.py", "--server.address=0.0.0.0", "--server
 # No lleva los pesos base (~3 GB): se bajan de Hugging Face en la primera petición. Para no repetir
 # la descarga en cada contenedor:  -v ckpt_latam:/app/ckpt_latam
 FROM api AS standalone
+ENV PRECARGAR_MODELO=lora_out_2voces
 COPY lora_out_2voces/ lora_out_2voces/
 COPY tts_app/voces/ tts_app/voces/
