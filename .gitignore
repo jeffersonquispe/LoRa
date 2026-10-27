@@ -28,3 +28,7 @@ para_drive/
 
 # --- Se conservan en git (texto pequeño) ---
 # scripts, CSV, ENTRENAMIENTO_LORA.md, adaptador (lora_out/), datos de entrenamiento y audios de prueba
+
+# --- tts_app ---
+tts_app/.venv_ui/
+tts_app/voces/

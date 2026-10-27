@@ -1,0 +1,8 @@
+# Lista blanca: el contexto de build solo necesita estos archivos
+*
+!Dockerfile
+!carga_ligera.py
+!pesos_s3.py
+!tts_app/api.py
+!tts_app/app.py
+!docker/entrypoint.sh

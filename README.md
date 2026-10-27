@@ -3,17 +3,19 @@
 Fine-tuning con LoRA del **T3** de [Chatterbox Multilingual es-mx-latam](https://huggingface.co/ResembleAI/Chatterbox-Multilingual-es-mx-latam),
 más los scripts para armar el dataset (frases + audios), entrenar y comparar base vs LoRA.
 
-> Experimento con 13.4 min de audio sintético de una sola voz. Detalles, resultados y limitaciones en
-> **[ENTRENAMIENTO_LORA.md](ENTRENAMIENTO_LORA.md)**.
+> El experimento inicial usó 13.4 min de audio sintético de una sola voz (300 frases); el dataset actual tiene
+> 2000 frases (108.7 min, ElevenLabs, voz masculina) y se está ampliando con una voz femenina venezolana.
+> Detalles, resultados y limitaciones del experimento inicial en **[ENTRENAMIENTO_LORA.md](ENTRENAMIENTO_LORA.md)**.
 
 ## Contenido
 
 | Ruta | Qué es |
 |---|---|
 | `chatterbox/` | Código oficial de [resemble-ai/chatterbox](https://github.com/resemble-ai/chatterbox) como **submódulo** fijado en el commit `5de7a54` |
-| `lora_out/` | Adaptador LoRA entrenado (época 3) con su model card |
-| `dataset_frases.csv`, `dataset_audios/` | 300 frases y sus audios (ElevenLabs) |
-| `lora_data/` | Características pre-calculadas (`features.pt`) |
+| `dataset_frases.csv`, `dataset_audios/` | 2000 frases y sus audios (ElevenLabs, voz masculina). Las primeras 300 fueron el dataset del experimento inicial |
+| `voces/vef_07508/` | Voz femenina venezolana: 140 clips (7.3 min, 24 kHz mono) del corpus `es_ve_female`, con `dataset_frases.csv` |
+| `lora_data/` | Características pre-calculadas: `features.pt` (300), `features_1000.pt`, `features_2000.pt` y `features_vef_07508.pt` |
+| `lora_out/`, `lora_out_1000/`, `lora_out_2000/` | Adaptadores entrenados con 300, 1000 y 2000 frases |
 | `lora_inferencias/`, `lora_prueba/` | Audios de comparación base vs LoRA |
 | `ejemplos/` | Scripts sueltos de prueba (`multilingue.py`, `comparar_voces.py`) |
 | `*.py` | Scripts del flujo (ver abajo) |
@@ -43,11 +45,27 @@ python entrenar_lora.py         # entrena y guarda el mejor adaptador en lora_ou
 python generar_con_lora.py      # genera las mismas frases con el modelo base y con el LoRA
 ```
 
+### Varias voces (multi-speaker)
+
+Cada hablante es un `features_*.pt`; `entrenar_lora.py` acepta varios y el prompt de condicionamiento de cada
+ejemplo sale siempre del mismo hablante. Las voces pequeñas se repiten hasta `--max_rep` veces por época
+(por defecto 4) para equilibrar, y la validación se imprime por voz.
+
+```bash
+# Voz femenina: de es_ve_female (prefijo vef_07508) a un dataset en el formato del proyecto
+python preparar_voz_vef.py
+python preparar_datos_lora.py --csv voces/vef_07508/dataset_frases.csv --audios voces/vef_07508/dataset_audios --ext wav --salida lora_data/features_vef_07508.pt
+
+python entrenar_lora.py --datos lora_data/features_2000.pt lora_data/features_vef_07508.pt --salida lora_out_2voces
+```
+
+La voz al generar la define el `audio_prompt_path`: un clip de cada hablante.
+
 Para regenerar el dataset desde cero (necesita las claves del `.env`):
 
 ```bash
 python dataset_dialogos.py      # parte los diálogos en frases de 3 a 20 palabras
-python ampliar_dataset.py       # amplía a 300 frases (NVIDIA, Gemma 4)
+python ampliar_dataset.py       # amplía el dataset de frases (NVIDIA, Gemma 4)
 python audios_dataset.py        # genera los audios (ElevenLabs)
 ```
 
@@ -61,6 +79,21 @@ model = carga_ligera.cargar_modelo_completo()
 model.t3.tfmr = PeftModel.from_pretrained(model.t3.tfmr, "lora_out").merge_and_unload()
 wav = model.generate("Hola, ¿cómo estás?", language_id="es", audio_prompt_path="mi_voz.wav")
 ```
+
+## Despliegue rápido con Docker
+
+API (GPU) + Streamlit en otra máquina, sin clonar el repo completo. Los adaptadores y las voces de referencia
+se bajan solos de S3 al arrancar; los pesos base (~3 GB) de Hugging Face la primera vez.
+
+```bash
+cp .env.example .env     # rellena AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (usuario IAM de solo lectura al bucket)
+docker compose up -d --build
+```
+
+UI en http://localhost:8501 y API en http://localhost:8000/docs. Hace falta GPU NVIDIA y el
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/). La primera petición
+tarda (descarga + carga del modelo); los pesos base quedan en un volumen. Sin claves AWS no se descarga nada:
+monta tus carpetas `lora_out*/` y `tts_app/voces/` como volúmenes. Subir pesos nuevos al bucket: `python pesos_s3.py subir lora_out_X`.
 
 ## Requisitos
 

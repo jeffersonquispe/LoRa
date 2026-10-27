@@ -1,0 +1,9 @@
+# Prueba local sin S3 ni descargas: usa los pesos y voces de esta carpeta.
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+services:
+  api:
+    volumes:
+      - ./ckpt_latam:/app/ckpt_latam
+      - ./lora_out_2voces:/app/lora_out_2voces:ro
+      - ./lora_out_2000:/app/lora_out_2000:ro
+      - ./tts_app/voces:/app/tts_app/voces

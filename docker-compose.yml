@@ -1,0 +1,37 @@
+# Despliegue rápido:  cp .env.example .env  (rellena las claves AWS)  &&  docker compose up -d --build
+# Requiere GPU NVIDIA + NVIDIA Container Toolkit. UI: http://localhost:8501   API: http://localhost:8000/docs
+services:
+  api:
+    build: {context: ., target: api}
+    image: chatterbox-tts-api
+    env_file: [{path: .env, required: false}]
+    environment:
+      PESOS_BUCKET: ${PESOS_BUCKET:-chatterbox-lora-pesos-866923470465}
+      MODELOS_LORA: ${MODELOS_LORA:-lora_out_2voces lora_out_2000}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    ports: ["8000:8000"]
+    volumes:
+      - ckpt_latam:/app/ckpt_latam        # pesos base (~3 GB): se bajan una vez de Hugging Face
+      - hf_cache:/root/.cache/huggingface
+      - voces:/app/tts_app/voces          # voces de referencia (las subidas desde la UI persisten)
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+    restart: unless-stopped
+
+  ui:
+    build: {context: ., target: ui}
+    image: chatterbox-tts-ui
+    environment:
+      TTS_API_URL: http://api:8000
+      TTS_API_KEY: ${TTS_API_KEY:-}
+    ports: ["8501:8501"]
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+
+volumes:
+  ckpt_latam:
+  hf_cache:
+  voces:
