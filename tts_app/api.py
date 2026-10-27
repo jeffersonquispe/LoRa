@@ -28,6 +28,7 @@ from chatterbox.mtl_tts import SUPPORTED_LANGUAGES  # noqa: E402
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Security, UploadFile  # noqa: E402
 from fastapi.responses import Response  # noqa: E402
 from fastapi.security import APIKeyHeader  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
 from peft import PeftModel  # noqa: E402
 
 VOCES_DIR = os.path.join(RAIZ, "tts_app", "voces")
@@ -43,9 +44,13 @@ app = FastAPI(title="Chatterbox TTS (Latam + LoRA)", version="1.0")
 _cabecera = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-def verificar(clave: str | None = Security(_cabecera)) -> None:
-    if API_KEY and clave != API_KEY:
-        raise HTTPException(401, "X-API-Key inválida o ausente")
+_cabecera_xi = APIKeyHeader(name="xi-api-key", auto_error=False)  # compatibilidad con clientes de ElevenLabs
+MODELO_XI = os.environ.get("MODELO_ELEVENLABS") or PRECARGAR or "lora_out_2voces"
+
+
+def verificar(clave: str | None = Security(_cabecera), clave_xi: str | None = Security(_cabecera_xi)) -> None:
+    if API_KEY and API_KEY not in (clave, clave_xi):
+        raise HTTPException(401, "X-API-Key (o xi-api-key) inválida o ausente")
 
 
 # ---------- catálogo de modelos y voces ----------
@@ -268,3 +273,37 @@ def tts(
     finally:
         if tmp and os.path.exists(tmp):
             os.remove(tmp)
+
+
+# ---------- compatibilidad con la API de ElevenLabs ----------
+class AjustesVoz(BaseModel):
+    stability: float | None = Field(None, ge=0.0, le=1.0)  # -> temperature
+    style: float | None = Field(None, ge=0.0, le=1.0)  # -> exaggeration
+    similarity_boost: float | None = None  # sin equivalente: se ignora
+    use_speaker_boost: bool | None = None  # sin equivalente: se ignora
+
+
+class PeticionXI(BaseModel):
+    text: str
+    model_id: str | None = None  # se ignora: se usa MODELO_ELEVENLABS
+    language_code: str | None = None
+    voice_settings: AjustesVoz | None = None
+
+
+@app.post("/v1/text-to-speech/{voice_id}", dependencies=[Depends(verificar)], response_class=Response,
+          responses={200: {"content": {"audio/wav": {}}}}, tags=["elevenlabs"])
+def tts_elevenlabs(voice_id: str, p: PeticionXI):
+    """Mismo contrato que ElevenLabs text-to-speech (JSON + xi-api-key), pero devuelve audio/wav, no mp3.
+    stability -> temperature (1.1 - 0.6*stability); style -> exaggeration (0.5 + 0.5*style)."""
+    ajustes = p.voice_settings or AjustesVoz()
+    temperature = 0.8 if ajustes.stability is None else 1.1 - 0.6 * ajustes.stability
+    exaggeration = 0.5 if ajustes.style is None else 0.5 + 0.5 * ajustes.style
+    return tts(texto=p.text, modelo=MODELO_XI, voz=voice_id, idioma=p.language_code or "es",
+               exaggeration=exaggeration, cfg_weight=0.5, temperature=temperature, voz_archivo=None)
+
+
+@app.get("/v1/voices", dependencies=[Depends(verificar)], tags=["elevenlabs"])
+def voces_elevenlabs():
+    return {"voices": [{"voice_id": v["id"] or v["archivo"], "name": v["nombre"],
+                        "labels": {"gender": {"m": "male", "f": "female"}.get(v["genero"], "")}}
+                       for v in detalle_voces()]}

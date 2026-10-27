@@ -139,6 +139,24 @@ sw, tr, zh`. Los adaptadores LoRA se entrenaron solo con español: en otros idio
 | `422` | Un parámetro numérico fuera de rango o con el tipo equivocado. |
 | `503` | Sin memoria de GPU: prueba con un texto más corto. |
 
+## Compatibilidad con ElevenLabs
+
+Para reutilizar código hecho para ElevenLabs, cambia solo la URL base y la clave:
+
+| Método | Ruta | Notas |
+|---|---|---|
+| POST | `/v1/text-to-speech/{voice_id}` | Cuerpo JSON `{"text", "voice_settings": {"stability", "style"}, "language_code"}`. `voice_id` es un ID de `/voces` (`spk_f01`, `spk_m01`). |
+| GET | `/v1/voices` | Lista `{"voices": [{"voice_id", "name", "labels"}]}`. |
+
+- La clave puede ir en `xi-api-key` (o en `X-API-Key`). En Salad sigue haciendo falta `Salad-Api-Key`.
+- `model_id`, `similarity_boost`, `use_speaker_boost` y `output_format` se ignoran. El modelo es el de la variable `MODELO_ELEVENLABS` (por defecto `lora_out_2voces`).
+- `stability` se traduce a `temperature` (1.1 - 0.6·stability) y `style` a `exaggeration` (0.5 + 0.5·style).
+- **La respuesta es WAV (24 kHz), no MP3.** Sin streaming.
+
+```bash
+curl -X POST $URL/v1/text-to-speech/spk_f01 -H "xi-api-key: $CLAVE" -H "Content-Type: application/json"   -d '{"text": "Hola, ¿cómo estás?", "voice_settings": {"stability": 0.5, "style": 0.3}}' -o salida.wav
+```
+
 ## Ejemplos
 
 ### curl
