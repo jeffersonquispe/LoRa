@@ -41,12 +41,13 @@ COPY tts_app/app.py tts_app/
 EXPOSE 8501
 CMD ["streamlit", "run", "tts_app/app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]
 
-# ---------- STANDALONE: la API con el adaptador de 2 voces y las voces ya dentro ----------
+# ---------- STANDALONE: la API con los adaptadores de 2 y 4 voces y las voces ya dentro ----------
 # Es el último stage, así que `docker build -t <nombre> .` produce esta imagen. Funciona con:
 #   docker run --gpus all -p 8000:8000 <nombre>
 # No lleva los pesos base (~3 GB): se bajan de Hugging Face en la primera petición. Para no repetir
 # la descarga en cada contenedor:  -v ckpt_latam:/app/ckpt_latam
 FROM api AS standalone
-ENV PRECARGAR_MODELO=lora_out_2voces
+ENV PRECARGAR_MODELO=lora_out_4voces
 COPY lora_out_2voces/ lora_out_2voces/
+COPY lora_out_4voces/ lora_out_4voces/
 COPY tts_app/voces/ tts_app/voces/

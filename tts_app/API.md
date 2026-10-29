@@ -40,7 +40,7 @@ Sin clave configurada en el servidor, no se pide nada. Una clave ausente o incor
 ### `GET /health`
 
 ```json
-{ "ok": true, "modelo_cargado": "lora_out_2voces", "cuda": true, "estado": "listo" }
+{ "ok": true, "modelo_cargado": "lora_out_4voces", "cuda": true, "estado": "listo" }
 ```
 
 `estado` es `bajo_demanda`, `cargando`, `listo` o `error: ...`. Responde 200 en cuanto el proceso arranca, **aunque el
@@ -48,9 +48,9 @@ modelo aún se esté cargando**: úsalo como *liveness*. Para saber si ya se pue
 
 ### `GET /listo`
 
-200 `{ "listo": true, "modelo_cargado": "lora_out_2voces" }` cuando el modelo precargado está en la GPU y calentado;
+200 `{ "listo": true, "modelo_cargado": "lora_out_4voces" }` cuando el modelo precargado está en la GPU y calentado;
 503 `{ "detail": "No listo: cargando" }` mientras tanto. Sin autenticación. Con la variable `PRECARGAR_MODELO` (la imagen
-Docker `standalone` la trae con `lora_out_2voces`) el modelo se carga al arrancar y se hace una generación corta de
+Docker `standalone` la trae con `lora_out_4voces`) el modelo se carga al arrancar y se hace una generación corta de
 calentamiento, de modo que la primera petición real tarda unos segundos en lugar de minutos. Sin esa variable responde
 200 siempre y el modelo se carga con la primera petición.
 
@@ -61,11 +61,12 @@ minutos): ajusta el tiempo máximo de arranque de la sonda en consecuencia.
 ### `GET /modelos`
 
 ```json
-{ "modelos": ["base", "lora_out", "lora_out_1000", "lora_out_2000", "lora_out_2voces"], "cargado": "lora_out_2voces" }
+{ "modelos": ["base", "lora_out", "lora_out_1000", "lora_out_2000", "lora_out_2voces", "lora_out_4voces"], "cargado": "lora_out_4voces" }
 ```
 
 - `base`: Chatterbox Latam sin entrenar.
-- `lora_out_2voces`: adaptador entrenado con una voz masculina (ElevenLabs) y una femenina venezolana. Es el recomendado.
+- `lora_out_4voces`: adaptador entrenado con cuatro voces (masculina ElevenLabs, femenina venezolana, mexicana y un narrador). Es el recomendado.
+- `lora_out_2voces`: versión anterior, solo masculina y venezolana.
 - `lora_out_2000`, `lora_out_1000`, `lora_out`: adaptadores anteriores, solo voz masculina, con 2000, 1000 y 300 frases.
 
 La lista depende de las carpetas `lora_out*` presentes en el servidor: consúltala en lugar de fijarla en tu código.
@@ -78,7 +79,9 @@ La lista depende de las carpetas `lora_out*` presentes en el servidor: consúlta
   "voces_detalle": [
     {"id": "por_defecto", "archivo": null,                       "nombre": "Por defecto (masculina)", "genero": "m"},
     {"id": "spk_f01",     "archivo": "femenina_venezolana.wav",  "nombre": "Femenina venezolana",     "genero": "f"},
-    {"id": "spk_m01",     "archivo": "masculina_elevenlabs.mp3", "nombre": "Masculina ElevenLabs",    "genero": "m"}
+    {"id": "spk_m01",     "archivo": "masculina_elevenlabs.mp3", "nombre": "Masculina ElevenLabs",    "genero": "m"},
+    {"id": "spk_mx01",    "archivo": "mexicana_nueva.wav",       "nombre": "Mexicana",                "genero": null},
+    {"id": "spk_n01",     "archivo": "narrador_19marzo.wav",     "nombre": "Narrador 19 de marzo",    "genero": null}
   ]
 }
 ```
@@ -114,7 +117,7 @@ sw, tr, zh`. Los adaptadores LoRA se entrenaron solo con español: en otros idio
 |---|---|---|---|---|---|
 | `texto` | string | **sí** | – | 1 a 600 caracteres | Texto a locutar. Se recortan los espacios de los extremos. |
 | `modelo` | string | no | `base` | un valor de `/modelos` | Modelo o adaptador LoRA. |
-| `voz` | string | no | `por_defecto` | un `id` de `/voces` (`spk_f01`, `spk_m01`…) o un nombre de archivo | **Speaker.** Se ignora si envías `voz_archivo`. |
+| `voz` | string | no | `por_defecto` | un `id` de `/voces` (`spk_f01`, `spk_m01`, `spk_mx01`, `spk_n01`…) o un nombre de archivo | **Speaker.** Se ignora si envías `voz_archivo`. |
 | `voz_archivo` | file | no | – | wav, mp3, flac, ogg | Audio de referencia solo para esta petición (no se guarda). |
 | `idioma` | string | no | `es` | un valor de `/idiomas` | Código de idioma. |
 | `exaggeration` | float | no | `0.5` | 0.0 a 2.0 | Expresividad. Más alto, más emoción y variación de tono. |
@@ -149,7 +152,7 @@ Para reutilizar código hecho para ElevenLabs, cambia solo la URL base y la clav
 | GET | `/v1/voices` | Lista `{"voices": [{"voice_id", "name", "labels"}]}`. |
 
 - La clave puede ir en `xi-api-key` (o en `X-API-Key`). En Salad sigue haciendo falta `Salad-Api-Key`.
-- `model_id`, `similarity_boost`, `use_speaker_boost` y `output_format` se ignoran. El modelo es el de la variable `MODELO_ELEVENLABS` (por defecto `lora_out_2voces`).
+- `model_id`, `similarity_boost`, `use_speaker_boost` y `output_format` se ignoran. El modelo es el de la variable `MODELO_ELEVENLABS` (por defecto `lora_out_4voces`).
 - `stability` se traduce a `temperature` (1.1 - 0.6·stability) y `style` a `exaggeration` (0.5 + 0.5·style).
 - **La respuesta es WAV (24 kHz), no MP3.** Sin streaming.
 
@@ -164,7 +167,7 @@ curl -X POST $URL/v1/text-to-speech/spk_f01 -H "xi-api-key: $CLAVE" -H "Content-
 ```bash
 curl -X POST http://localhost:8000/tts \
   -F "texto=Hola, ¿cómo estás?" \
-  -F "modelo=lora_out_2voces" \
+  -F "modelo=lora_out_4voces" \
   -F "voz=spk_f01" \
   -F "idioma=es" \
   -o salida.wav
@@ -174,13 +177,13 @@ Registrar una voz nueva con su ID y usarla:
 
 ```bash
 curl -X POST http://localhost:8000/voces -F "archivo=@mexicana.wav" -F "id=spk_f02" -F "nombre=Femenina mexicana" -F "genero=f"
-curl -X POST http://localhost:8000/tts -F "texto=Hola" -F "modelo=lora_out_2voces" -F "voz=spk_f02" -o salida.wav
+curl -X POST http://localhost:8000/tts -F "texto=Hola" -F "modelo=lora_out_4voces" -F "voz=spk_f02" -o salida.wav
 ```
 
 Con una voz de referencia puntual, sin subirla antes:
 
 ```bash
-curl -X POST http://localhost:8000/tts -F "texto=Buenos días" -F "modelo=lora_out_2voces" \
+curl -X POST http://localhost:8000/tts -F "texto=Buenos días" -F "modelo=lora_out_4voces" \
   -F "voz_archivo=@mi_voz.wav" -o salida.wav
 ```
 
@@ -195,7 +198,7 @@ HEADERS = {}  # {"X-API-Key": "..."} si el servidor tiene clave
 r = requests.post(
     f"{API}/tts",
     headers=HEADERS,
-    data={"texto": "Hola, ¿cómo estás?", "modelo": "lora_out_2voces",
+    data={"texto": "Hola, ¿cómo estás?", "modelo": "lora_out_4voces",
           "voz": "spk_m01", "idioma": "es", "exaggeration": 0.5},
     timeout=600,  # la primera petición carga el modelo en la GPU
 )
@@ -211,7 +214,7 @@ else:
 ```js
 const form = new FormData();
 form.append("texto", "Hola, ¿cómo estás?");
-form.append("modelo", "lora_out_2voces");
+form.append("modelo", "lora_out_4voces");
 form.append("voz", "spk_f01");
 
 const r = await fetch("http://localhost:8000/tts", { method: "POST", body: form /*, headers: {"X-API-Key": "..."}*/ });
@@ -226,7 +229,7 @@ proxy delante.
 
 - **Timeouts:** la primera petición carga el modelo (~1 min) y cambiar de `modelo` lo recarga. Usa un timeout de al
   menos 600 s en el cliente; una generación normal con el modelo cargado tarda unos segundos.
-- **Cambiar de modelo a menudo es caro.** Si tu aplicación usa dos voces, usa el **mismo `modelo`** (`lora_out_2voces`)
+- **Cambiar de modelo a menudo es caro.** Si tu aplicación usa varias voces, usa el **mismo `modelo`** (`lora_out_4voces`)
   y cambia solo `voz`: no recarga nada.
 - **Textos largos:** el límite es 600 caracteres por petición. Divide el texto por frases y concatena los WAV.
 - **Usa IDs, no nombres de archivo.** El ID (`spk_f01`) es estable: puedes cambiar el audio que hay detrás (con

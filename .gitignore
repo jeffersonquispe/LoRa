@@ -32,3 +32,6 @@ para_drive/
 # --- tts_app ---
 tts_app/.venv_ui/
 tts_app/voces/
+
+# --- Datos de voces preparados (corpus de terceros; viajan por S3, no por git) ---
+voces/

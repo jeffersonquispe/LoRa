@@ -8,4 +8,5 @@
 !docker/entrypoint.sh
 !docker/serve.py
 !lora_out_2voces/
+!lora_out_4voces/
 !tts_app/voces/
