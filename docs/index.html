@@ -25,6 +25,8 @@
   .rejilla { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
   .tarjeta, .panel { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 16px; }
   .tarjeta h3 { margin: 0; font-size: 1.05rem; }
+  .pestanas { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+  .pestanas button[aria-selected="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); font-weight: 600; }
   .id { font-family: ui-monospace, Consolas, monospace; font-size: .85rem; background: var(--codigo); padding: 1px 6px; border-radius: 6px; }
   .meta { color: var(--suave); font-size: .9rem; margin: 6px 0 12px; }
   .frase { font-size: .9rem; color: var(--suave); margin: 10px 0 4px; }
@@ -55,7 +57,9 @@
   <p class="sub">Texto a voz en español con Chatterbox Multilingual y un adaptador LoRA entrenado con cuatro voces.</p>
 
   <h2>Muestras</h2>
-  <p class="sub">Audios generados con la API desplegada en Salad (modelo <code>lora_out_4voces</code>). Cada tarjeta muestra el ID que se usa en la API.</p>
+  <p class="sub">Las mismas cuatro frases con cada modelo, para compararlos. Cada tarjeta muestra el ID que se usa en la API.</p>
+  <div class="pestanas" id="pestanas" role="tablist"></div>
+  <p class="meta" id="detalleConjunto"></p>
   <div class="rejilla" id="tarjetas"></div>
 
   <h2>Probar la API</h2>
@@ -127,42 +131,70 @@
 <script>
 "use strict";
 
-// Muestras: ver audio/ en esta misma carpeta. Para cambiarlas, reemplaza los .wav y ajusta esta lista.
+// Muestras: audios en audio/<conjunto>/<voz>_<n>.wav. Para cambiarlas, reemplaza los .wav y ajusta estas listas.
 const FRASES = [
-  "Hola, buenas tardes. Le llamo para confirmar su cita de mañana a las diez.",
+  "Dime que no vas a dejarme solo con todo este papeleo.",
+  "Venga, no pongas esa cara, que no es tan grave.",
   "Esta noche parece que la tormenta no se va a acabar nunca.",
+  "No sé cómo lo haces, pero siempre consigues hacerme reír.",
+];
+const FRASES_2000 = [
+  "Oye, ¿te acordaste de pasar por el pan antes de volver a casa?",
+  "No me mires así, que sabes que me cuesta decirte que no.",
+  "Mañana temprano tengo una reunión y todavía no he preparado nada.",
+  "¿Quién se comió el último pedazo de pastel que había en la nevera?",
 ];
 const VOCES = [
-  { id: "spk_m01",  archivo: "masculina",  nombre: "Masculina",  detalle: "Voz masculina (ElevenLabs), 2.000 clips." },
-  { id: "spk_f01",  archivo: "venezolana", nombre: "Venezolana", detalle: "Voz femenina venezolana, unos 140 clips." },
-  { id: "spk_mx01", archivo: "mexicana",   nombre: "Mexicana",   detalle: "Voz mexicana, 3.000 clips." },
-  { id: "spk_n01",  archivo: "narrador",   nombre: "Narrador",   detalle: "Narrador de audiolibro (España), 1.000 clips." },
+  { id: "spk_m01",  archivo: "masculina",  nombre: "Masculina",  detalle: "Voz masculina (ElevenLabs)." },
+  { id: "spk_f01",  archivo: "venezolana", nombre: "Venezolana", detalle: "Voz femenina venezolana." },
+  { id: "spk_mx01", archivo: "mexicana",   nombre: "Mexicana",   detalle: "Voz mexicana." },
+  { id: "spk_n01",  archivo: "narrador",   nombre: "Narrador",   detalle: "Narrador de audiolibro (España)." },
+];
+const CONJUNTOS = [
+  { id: "full", titulo: "4 voces · todos los datos", carpeta: "audio/full", voces: VOCES,
+    detalle: "Modelo lora_out_4voces_full: 2.000 clips de la masculina, 3.000 de la mexicana, 1.000 del narrador y 133 de la venezolana." },
+  { id: "500", titulo: "4 voces · 500 clips por voz", carpeta: "audio/500", voces: VOCES,
+    detalle: "Modelo lora_out_4voces: 500 clips por voz (la venezolana, unos 140)." },
+  { id: "2000", titulo: "lora_out_2000 · solo masculina", carpeta: "audio/2000", voces: [VOCES[0]], frases: FRASES_2000,
+    detalle: "Modelo lora_out_2000: una sola voz, entrenada con 2.000 frases. Usa otras cuatro frases que los conjuntos anteriores." },
 ];
 
 const $ = (id) => document.getElementById(id);
 const LS = "chatterbox-demo";
 
-// ---------- tarjetas de muestras ----------
-for (const v of VOCES) {
-  const t = document.createElement("div");
-  t.className = "tarjeta";
-  const h = document.createElement("h3");
-  h.append(v.nombre + " ");
-  const id = document.createElement("span");
-  id.className = "id"; id.textContent = v.id;
-  h.append(id);
-  const meta = document.createElement("p");
-  meta.className = "meta"; meta.textContent = v.detalle;
-  t.append(h, meta);
-  FRASES.forEach((frase, i) => {
-    const p = document.createElement("p");
-    p.className = "frase"; p.textContent = "“" + frase + "”";
-    const a = document.createElement("audio");
-    a.controls = true; a.preload = "none"; a.src = `audio/${v.archivo}_${i + 1}.wav`;
-    t.append(p, a);
-  });
-  $("tarjetas").append(t);
+// ---------- muestras por conjunto ----------
+function mostrarConjunto(c) {
+  for (const b of $("pestanas").children) b.setAttribute("aria-selected", String(b.dataset.id === c.id));
+  $("detalleConjunto").textContent = c.detalle;
+  $("tarjetas").textContent = "";
+  for (const v of c.voces) {
+    const t = document.createElement("div");
+    t.className = "tarjeta";
+    const h = document.createElement("h3");
+    h.append(v.nombre + " ");
+    const id = document.createElement("span");
+    id.className = "id"; id.textContent = v.id;
+    h.append(id);
+    const meta = document.createElement("p");
+    meta.className = "meta"; meta.textContent = v.detalle;
+    t.append(h, meta);
+    (c.frases || FRASES).forEach((frase, i) => {
+      const p = document.createElement("p");
+      p.className = "frase"; p.textContent = "“" + frase + "”";
+      const a = document.createElement("audio");
+      a.controls = true; a.preload = "none"; a.src = `${c.carpeta}/${v.archivo}_${i + 1}.wav`;
+      t.append(p, a);
+    });
+    $("tarjetas").append(t);
+  }
 }
+for (const c of CONJUNTOS) {
+  const b = document.createElement("button");
+  b.textContent = c.titulo; b.dataset.id = c.id; b.setAttribute("role", "tab");
+  b.addEventListener("click", () => mostrarConjunto(c));
+  $("pestanas").append(b);
+}
+mostrarConjunto(CONJUNTOS[0]);
 
 // ---------- ajustes guardados ----------
 function leerAjustes() {
@@ -291,7 +323,7 @@ $("rapida").addEventListener("click", async () => {
   for (const [i, voz] of voces.entries()) {
     mensaje(est, `Probando ${voz} (${i + 1}/${voces.length})…`);
     try {
-      const r = await sintetizar(voz, FRASES[0]);
+      const r = await sintetizar(voz, $("texto").value.trim() || FRASES[0]);
       fila(voz, "OK", r); bien++;
     } catch (e) {
       fila(voz, "Error: " + explicar(e).slice(0, 60), null);

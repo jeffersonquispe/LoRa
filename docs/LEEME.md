@@ -15,14 +15,19 @@ Ojo: en un repositorio privado, Pages exige un plan de pago, y si la publicas, *
 
 ## Cambiar las muestras
 
-Los audios están en `audio/<voz>_1.wav` y `audio/<voz>_2.wav`, con las frases definidas en `FRASES` dentro de `index.html`. Para regenerarlos contra la API:
+Hay tres conjuntos en `audio/`, cada uno con 4 frases por voz (`<voz>_1.wav` a `<voz>_4.wav`):
+
+| Carpeta | Modelo |
+|---|---|
+| `audio/full/` | `lora_out_4voces_full` (todos los datos) |
+| `audio/500/` | `lora_out_4voces` (500 clips por voz) |
+| `audio/2000/` | `lora_out_2000` (solo voz masculina; usa otras 4 frases) |
+
+Las frases y la descripción de cada conjunto están en `FRASES`, `FRASES_2000` y `CONJUNTOS` dentro de `index.html`. Para regenerar un audio contra la API:
 
 ```bash
-curl -X POST $URL/v1/text-to-speech/spk_f01 -H "Salad-Api-Key: $SALAD_KEY" -H "Content-Type: application/json" \
-  -d '{"text": "Hola, buenas tardes. Le llamo para confirmar su cita de mañana a las diez."}' -o audio/venezolana_1.wav
+curl -X POST $URL/v1/text-to-speech/spk_f01 -H "Salad-Api-Key: $SALAD_KEY" -H "Content-Type: application/json"   -d '{"text": "Venga, no pongas esa cara, que no es tan grave."}' -o audio/full/venezolana_2.wav
 ```
-
-Las voces y sus IDs también se declaran en `VOCES` (en `index.html`).
 
 ## Probar la API desde el navegador: requisitos
 
