@@ -26,6 +26,7 @@ import soundfile as sf  # noqa: E402
 import torch  # noqa: E402
 from chatterbox.mtl_tts import SUPPORTED_LANGUAGES  # noqa: E402
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Security, UploadFile  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import Response  # noqa: E402
 from fastapi.security import APIKeyHeader  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
@@ -41,6 +42,11 @@ API_KEY = os.environ.get("TTS_API_KEY")
 PRECARGAR = os.environ.get("PRECARGAR_MODELO", "")  # modelo a cargar y calentar al arrancar ("" = bajo demanda)
 
 app = FastAPI(title="Chatterbox TTS (Latam + LoRA)", version="1.0")
+# CORS solo si se define CORS_ORIGINS (lista separada por comas, p. ej. la URL de GitHub Pages). Sin ella, la API no acepta navegadores de otro origen.
+ORIGENES = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+if ORIGENES:
+    app.add_middleware(CORSMiddleware, allow_origins=ORIGENES, allow_methods=["GET", "POST"], allow_headers=["*"],
+                       expose_headers=["X-Segundos-Generacion", "X-Duracion-Audio", "X-Modelo"])
 _cabecera = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 

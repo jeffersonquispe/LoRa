@@ -33,6 +33,7 @@ ap.add_argument("--text_drop", type=float, default=0.1, help="prob. de anular el
 ap.add_argument("--max_rep", type=int, default=4, help="máx. veces que se repite cada ejemplo de una voz pequeña por época")
 ap.add_argument("--sin_balance", action="store_true", help="no igualar el número de ejemplos por hablante en cada época")
 ap.add_argument("--semilla", type=int, default=0)
+ap.add_argument("--guardar_epocas", action="store_true", help="guarda también el adaptador de cada época en <salida>/epoca_N")
 ap.add_argument("--max_pasos", type=int, default=0, help="para pruebas rápidas; 0 = sin límite")
 args = ap.parse_args()
 
@@ -165,6 +166,8 @@ def main() -> None:
                     break
         v, det = evaluar(t3, val, por_voz)
         print(f"época {ep}/{args.epocas}  train {acum_loss / max(n, 1):.4f}  val {v:.4f}  {fmt(det)}", flush=True)
+        if args.guardar_epocas:  # una carpeta por época para compararlas por oído
+            t3.tfmr.save_pretrained(os.path.join(args.salida, f"epoca_{ep}"))
         if v < mejor:
             mejor = v
             t3.tfmr.save_pretrained(args.salida)

@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voces Chatterbox</title>
+<meta name="description" content="Muestras de audio y consola de pruebas de la API de texto a voz en español (Chatterbox + LoRA).">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --texto: #1c2430; --suave: #5b6676; --linea: #dde1e8;
+    --acento: #2f5bea; --acento-texto: #ffffff; --ok: #187a3b; --error: #b3261e; --codigo: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151a; --panel: #1b2027; --texto: #e6e9ee; --suave: #9aa4b2; --linea: #2c333d;
+      --acento: #6d8cff; --acento-texto: #0d1117; --ok: #5fd68a; --error: #ff8a80; --codigo: #232a33;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texto); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.8rem; margin: 8px 0 4px; }
+  h2 { font-size: 1.25rem; margin: 40px 0 12px; }
+  p.sub { color: var(--suave); margin: 0 0 8px; }
+  .rejilla { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .tarjeta, .panel { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 16px; }
+  .tarjeta h3 { margin: 0; font-size: 1.05rem; }
+  .id { font-family: ui-monospace, Consolas, monospace; font-size: .85rem; background: var(--codigo); padding: 1px 6px; border-radius: 6px; }
+  .meta { color: var(--suave); font-size: .9rem; margin: 6px 0 12px; }
+  .frase { font-size: .9rem; color: var(--suave); margin: 10px 0 4px; }
+  audio { width: 100%; height: 40px; }
+  label { display: block; font-size: .9rem; color: var(--suave); margin: 12px 0 4px; }
+  input, select, textarea, button { font: inherit; color: var(--texto); }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--linea); border-radius: 8px; background: var(--bg); }
+  textarea { min-height: 96px; resize: vertical; }
+  .fila { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  button { padding: 9px 16px; border-radius: 8px; border: 1px solid var(--linea); background: var(--panel); cursor: pointer; }
+  button.primario { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); font-weight: 600; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .estado { margin-top: 12px; font-size: .92rem; min-height: 1.4em; }
+  .estado.ok { color: var(--ok); } .estado.error { color: var(--error); }
+  .contador { float: right; font-size: .8rem; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .9rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--linea); }
+  th { color: var(--suave); font-weight: 600; }
+  .aviso { border-left: 4px solid var(--acento); background: var(--codigo); padding: 10px 14px; border-radius: 6px; font-size: .9rem; margin: 12px 0; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: .88em; background: var(--codigo); padding: 1px 5px; border-radius: 5px; }
+  footer { margin-top: 48px; color: var(--suave); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Voces Chatterbox</h1>
+  <p class="sub">Texto a voz en español con Chatterbox Multilingual y un adaptador LoRA entrenado con cuatro voces.</p>
+
+  <h2>Muestras</h2>
+  <p class="sub">Audios generados con la API desplegada en Salad (modelo <code>lora_out_4voces</code>). Cada tarjeta muestra el ID que se usa en la API.</p>
+  <div class="rejilla" id="tarjetas"></div>
+
+  <h2>Probar la API</h2>
+  <div class="panel">
+    <div class="aviso">
+      La clave se queda en tu navegador y solo se envía a la dirección que indiques. No se guarda en ningún servidor.
+      Para que el navegador pueda llamar a la API, el servidor debe permitir esta página (variable <code>CORS_ORIGINS</code>);
+      si el gateway de Salad exige <code>Salad-Api-Key</code>, el navegador no puede completar la consulta previa (preflight) y fallará.
+      Detalles en <a href="LEEME.md">LEEME.md</a>.
+    </div>
+    <div class="fila">
+      <div>
+        <label for="url">Dirección de la API</label>
+        <input id="url" placeholder="https://tu-dominio.salad.cloud" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label for="claveApi">Clave de la API (<code>X-API-Key</code>)</label>
+        <input id="claveApi" type="password" placeholder="opcional" autocomplete="off">
+      </div>
+      <div>
+        <label for="claveSalad">Clave de Salad (<code>Salad-Api-Key</code>)</label>
+        <input id="claveSalad" type="password" placeholder="opcional" autocomplete="off">
+      </div>
+    </div>
+    <label><input type="checkbox" id="recordar" style="width:auto"> Recordar estos datos en este navegador</label>
+    <div class="acciones">
+      <button id="conectar">Conectar</button>
+      <button id="rapida">Prueba rápida de las voces</button>
+    </div>
+    <div class="estado" id="estadoConexion" role="status"></div>
+
+    <h3 style="margin-top:28px">Generar audio</h3>
+    <div class="fila">
+      <div>
+        <label for="voz">Voz</label>
+        <select id="voz"></select>
+      </div>
+      <div>
+        <label for="stability">Estabilidad: <span id="vStab">0.5</span></label>
+        <input id="stability" type="range" min="0" max="1" step="0.05" value="0.5">
+      </div>
+      <div>
+        <label for="style">Expresividad: <span id="vStyle">0.3</span></label>
+        <input id="style" type="range" min="0" max="1" step="0.05" value="0.3">
+      </div>
+    </div>
+    <label for="texto">Texto <span class="contador" id="contador">0 / 600</span></label>
+    <textarea id="texto" maxlength="600">Hola, buenas tardes. Le llamo para confirmar su cita de mañana a las diez.</textarea>
+    <div class="acciones">
+      <button id="generar" class="primario">Generar</button>
+    </div>
+    <div class="estado" id="estadoGen" role="status"></div>
+    <audio id="resultado" controls hidden></audio>
+
+    <div id="resultados" hidden>
+      <table>
+        <thead><tr><th>Voz</th><th>Estado</th><th>Total</th><th>GPU</th><th>Audio</th></tr></thead>
+        <tbody id="cuerpo"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    Las voces pueden estar basadas en grabaciones de terceros: no las uses para suplantar a personas ni sin permiso.
+    Tiempo máximo por petición: 100 s (límite del gateway de Salad).
+  </footer>
+</main>
+
+<script>
+"use strict";
+
+// Muestras: ver audio/ en esta misma carpeta. Para cambiarlas, reemplaza los .wav y ajusta esta lista.
+const FRASES = [
+  "Hola, buenas tardes. Le llamo para confirmar su cita de mañana a las diez.",
+  "Esta noche parece que la tormenta no se va a acabar nunca.",
+];
+const VOCES = [
+  { id: "spk_m01",  archivo: "masculina",  nombre: "Masculina",  detalle: "Voz masculina (ElevenLabs), 2.000 clips." },
+  { id: "spk_f01",  archivo: "venezolana", nombre: "Venezolana", detalle: "Voz femenina venezolana, unos 140 clips." },
+  { id: "spk_mx01", archivo: "mexicana",   nombre: "Mexicana",   detalle: "Voz mexicana, 3.000 clips." },
+  { id: "spk_n01",  archivo: "narrador",   nombre: "Narrador",   detalle: "Narrador de audiolibro (España), 1.000 clips." },
+];
+
+const $ = (id) => document.getElementById(id);
+const LS = "chatterbox-demo";
+
+// ---------- tarjetas de muestras ----------
+for (const v of VOCES) {
+  const t = document.createElement("div");
+  t.className = "tarjeta";
+  const h = document.createElement("h3");
+  h.append(v.nombre + " ");
+  const id = document.createElement("span");
+  id.className = "id"; id.textContent = v.id;
+  h.append(id);
+  const meta = document.createElement("p");
+  meta.className = "meta"; meta.textContent = v.detalle;
+  t.append(h, meta);
+  FRASES.forEach((frase, i) => {
+    const p = document.createElement("p");
+    p.className = "frase"; p.textContent = "“" + frase + "”";
+    const a = document.createElement("audio");
+    a.controls = true; a.preload = "none"; a.src = `audio/${v.archivo}_${i + 1}.wav`;
+    t.append(p, a);
+  });
+  $("tarjetas").append(t);
+}
+
+// ---------- ajustes guardados ----------
+function leerAjustes() {
+  try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch { return {}; }
+}
+function guardarAjustes() {
+  try {
+    if ($("recordar").checked) {
+      localStorage.setItem(LS, JSON.stringify({ url: $("url").value, claveApi: $("claveApi").value, claveSalad: $("claveSalad").value, recordar: true }));
+    } else {
+      localStorage.removeItem(LS);
+    }
+  } catch { /* almacenamiento bloqueado: se usa solo en memoria */ }
+}
+const guardado = leerAjustes();
+if (guardado.recordar) {
+  $("url").value = guardado.url || ""; $("claveApi").value = guardado.claveApi || "";
+  $("claveSalad").value = guardado.claveSalad || ""; $("recordar").checked = true;
+}
+for (const id of ["url", "claveApi", "claveSalad", "recordar"]) $(id).addEventListener("change", guardarAjustes);
+
+// ---------- utilidades ----------
+function base() { return $("url").value.trim().replace(/\/+$/, ""); }
+function cabeceras(extra) {
+  const h = Object.assign({}, extra);
+  if ($("claveApi").value.trim()) h["X-API-Key"] = $("claveApi").value.trim();
+  if ($("claveSalad").value.trim()) h["Salad-Api-Key"] = $("claveSalad").value.trim();
+  return h;
+}
+function mensaje(el, texto, tipo) {
+  el.textContent = texto; el.className = "estado" + (tipo ? " " + tipo : "");
+}
+function explicar(e) {
+  if (e.name === "AbortError") return "Sin respuesta en 100 s.";
+  if (e instanceof TypeError) return "No se pudo conectar. Revisa la dirección y que el servidor permita esta página (CORS); con autenticación de gateway en Salad el navegador no puede hacer la consulta previa.";
+  return e.message;
+}
+async function pedir(ruta, opciones) {
+  const control = new AbortController();
+  const corte = setTimeout(() => control.abort(), 100000);
+  try {
+    return await fetch(base() + ruta, Object.assign({ signal: control.signal }, opciones));
+  } finally { clearTimeout(corte); }
+}
+async function detalleError(r) {
+  try { const j = await r.json(); return j.detail || JSON.stringify(j); } catch { return r.statusText; }
+}
+
+// ---------- conectar ----------
+function llenarVoces(lista) {
+  const sel = $("voz"); sel.textContent = "";
+  for (const v of lista) {
+    const o = document.createElement("option");
+    o.value = v.id; o.textContent = `${v.nombre} · ${v.id}`;
+    sel.append(o);
+  }
+}
+llenarVoces(VOCES);
+
+$("conectar").addEventListener("click", async () => {
+  const est = $("estadoConexion");
+  if (!base()) { mensaje(est, "Escribe la dirección de la API.", "error"); return; }
+  $("conectar").disabled = true; mensaje(est, "Conectando…");
+  try {
+    const r = await pedir("/health", { headers: cabeceras() });
+    if (!r.ok) throw new Error(`/health respondió ${r.status}: ${await detalleError(r)}`);
+    const salud = await r.json();
+    const rv = await pedir("/v1/voices", { headers: cabeceras() });
+    if (!rv.ok) throw new Error(`/v1/voices respondió ${rv.status}: ${await detalleError(rv)}`);
+    const voces = (await rv.json()).voices.filter((v) => v.voice_id !== "por_defecto")
+      .map((v) => ({ id: v.voice_id, nombre: v.name }));
+    if (voces.length) llenarVoces(voces);
+    mensaje(est, `Conectado. Modelo: ${salud.modelo_cargado || "ninguno"} · estado: ${salud.estado} · ${voces.length} voces.`, "ok");
+  } catch (e) {
+    mensaje(est, explicar(e), "error");
+  } finally { $("conectar").disabled = false; }
+});
+
+// ---------- generar ----------
+async function sintetizar(voz, texto) {
+  const t0 = performance.now();
+  const r = await pedir("/v1/text-to-speech/" + encodeURIComponent(voz), {
+    method: "POST",
+    headers: cabeceras({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ text: texto, voice_settings: { stability: +$("stability").value, style: +$("style").value } }),
+  });
+  if (!r.ok) throw new Error(`${r.status}: ${await detalleError(r)}`);
+  const blob = await r.blob();
+  return {
+    blob, total: (performance.now() - t0) / 1000,
+    gpu: r.headers.get("X-Segundos-Generacion"), audio: r.headers.get("X-Duracion-Audio"),
+  };
+}
+function fila(voz, estado, r) {
+  const tr = document.createElement("tr");
+  for (const v of [voz, estado, r ? r.total.toFixed(1) + " s" : "–", r && r.gpu ? r.gpu + " s" : "–", r && r.audio ? r.audio + " s" : "–"]) {
+    const td = document.createElement("td"); td.textContent = v; tr.append(td);
+  }
+  $("cuerpo").prepend(tr); $("resultados").hidden = false;
+}
+
+$("generar").addEventListener("click", async () => {
+  const est = $("estadoGen"), texto = $("texto").value.trim(), voz = $("voz").value;
+  if (!base()) { mensaje(est, "Escribe la dirección de la API.", "error"); return; }
+  if (!texto) { mensaje(est, "Escribe un texto.", "error"); return; }
+  $("generar").disabled = true; mensaje(est, "Generando…");
+  try {
+    const r = await sintetizar(voz, texto);
+    const a = $("resultado");
+    if (a.src) URL.revokeObjectURL(a.src);
+    a.src = URL.createObjectURL(r.blob); a.hidden = false; a.play().catch(() => {});
+    mensaje(est, `Listo en ${r.total.toFixed(1)} s` + (r.audio ? ` (audio de ${r.audio} s)` : "") + ".", "ok");
+    fila(voz, "OK", r);
+  } catch (e) {
+    mensaje(est, explicar(e), "error"); fila(voz, "Error", null);
+  } finally { $("generar").disabled = false; }
+});
+
+// ---------- prueba rápida: una frase por voz ----------
+$("rapida").addEventListener("click", async () => {
+  const est = $("estadoConexion");
+  if (!base()) { mensaje(est, "Escribe la dirección de la API.", "error"); return; }
+  $("rapida").disabled = true; $("conectar").disabled = true;
+  const voces = Array.from($("voz").options).map((o) => o.value);
+  let bien = 0;
+  for (const [i, voz] of voces.entries()) {
+    mensaje(est, `Probando ${voz} (${i + 1}/${voces.length})…`);
+    try {
+      const r = await sintetizar(voz, FRASES[0]);
+      fila(voz, "OK", r); bien++;
+    } catch (e) {
+      fila(voz, "Error: " + explicar(e).slice(0, 60), null);
+    }
+  }
+  mensaje(est, `Prueba rápida terminada: ${bien} de ${voces.length} voces correctas.`, bien === voces.length ? "ok" : "error");
+  $("rapida").disabled = false; $("conectar").disabled = false;
+});
+
+// ---------- controles ----------
+$("stability").addEventListener("input", (e) => { $("vStab").textContent = e.target.value; });
+$("style").addEventListener("input", (e) => { $("vStyle").textContent = e.target.value; });
+function contar() { $("contador").textContent = $("texto").value.length + " / 600"; }
+$("texto").addEventListener("input", contar); contar();
+</script>
+</body>
+</html>
