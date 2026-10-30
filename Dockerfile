@@ -47,7 +47,10 @@ CMD ["streamlit", "run", "tts_app/app.py", "--server.address=0.0.0.0", "--server
 # No lleva los pesos base (~3 GB): se bajan de Hugging Face en la primera petición. Para no repetir
 # la descarga en cada contenedor:  -v ckpt_latam:/app/ckpt_latam
 FROM api AS standalone
-ENV PRECARGAR_MODELO=lora_out_4voces
+ENV PRECARGAR_MODELO=lora_out_4voces_full
+# La página de demos (GitHub Pages) puede llamar a la API desde el navegador; cámbialo con -e CORS_ORIGINS=...
+ENV CORS_ORIGINS=https://jeffersonquispe.github.io
 COPY lora_out_2voces/ lora_out_2voces/
 COPY lora_out_4voces/ lora_out_4voces/
+COPY lora_out_4voces_full/ lora_out_4voces_full/
 COPY tts_app/voces/ tts_app/voces/

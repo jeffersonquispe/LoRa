@@ -9,4 +9,5 @@
 !docker/serve.py
 !lora_out_2voces/
 !lora_out_4voces/
+!lora_out_4voces_full/
 !tts_app/voces/
