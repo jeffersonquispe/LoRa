@@ -27,6 +27,7 @@
   .tarjeta h3 { margin: 0; font-size: 1.05rem; }
   .pestanas { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
   .pestanas button[aria-selected="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); font-weight: 600; }
+  summary { cursor: pointer; font-weight: 600; margin: 4px 0 8px; }
   .id { font-family: ui-monospace, Consolas, monospace; font-size: .85rem; background: var(--codigo); padding: 1px 6px; border-radius: 6px; }
   .meta { color: var(--suave); font-size: .9rem; margin: 6px 0 12px; }
   .frase { font-size: .9rem; color: var(--suave); margin: 10px 0 4px; }
@@ -69,7 +70,11 @@
       Para que el navegador pueda llamar a la API, el servidor debe permitir esta página (variable <code>CORS_ORIGINS</code>);
       si el gateway de Salad exige <code>Salad-Api-Key</code>, el navegador no puede completar la consulta previa (preflight) y fallará.
       Detalles en <a href="LEEME.md">LEEME.md</a>.
+      <br>Enlace para el equipo: <code>…/LoRa/#url=https://tu-dominio&amp;key=CLAVE</code>. La página lo lee, conecta sola y borra los datos de la barra de direcciones.
+      Parámetros: <code>url</code>, <code>key</code> (X-API-Key) y <code>salad</code> (Salad-Api-Key).
     </div>
+    <details id="config" open>
+      <summary>Conexión</summary>
     <div class="fila">
       <div>
         <label for="url">Dirección de la API</label>
@@ -85,6 +90,7 @@
       </div>
     </div>
     <label><input type="checkbox" id="recordar" style="width:auto"> Recordar estos datos en este navegador</label>
+    </details>
     <div class="acciones">
       <button id="conectar">Conectar</button>
       <button id="rapida">Prueba rápida de las voces</button>
@@ -336,6 +342,17 @@ $("rapida").addEventListener("click", async () => {
 // ---------- controles ----------
 $("stability").addEventListener("input", (e) => { $("vStab").textContent = e.target.value; });
 $("style").addEventListener("input", (e) => { $("vStyle").textContent = e.target.value; });
+// ---------- datos de conexión desde el enlace (#url=…&key=…&salad=…) ----------
+(function desdeEnlace() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (!q.get("url")) return;
+  $("url").value = q.get("url");
+  if (q.get("key")) $("claveApi").value = q.get("key");
+  if (q.get("salad")) $("claveSalad").value = q.get("salad");
+  history.replaceState(null, "", location.pathname + location.search); // la clave no queda en la barra ni en el historial
+  $("config").open = false;
+  $("conectar").click();
+})();
 function contar() { $("contador").textContent = $("texto").value.length + " / 600"; }
 $("texto").addEventListener("input", contar); contar();
 </script>

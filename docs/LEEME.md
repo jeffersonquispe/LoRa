@@ -38,6 +38,18 @@ El navegador solo deja que una página llame a otro dominio si ese servidor lo p
    - Desactiva la autenticación del gateway en el Container Group y protege la API con `TTS_API_KEY` (la página la envía en `X-API-Key`).
    - O deja el gateway autenticado y prueba con `curl`/Python (ver `tts_app/API.md`), no desde el navegador.
 
+## Enlace para el equipo (sin escribir nada)
+
+Para que quien prueba no tenga que teclear la dirección ni la clave, comparte un enlace con los datos tras el `#`:
+
+```
+https://jeffersonquispe.github.io/LoRa/#url=https://TU-DOMINIO.salad.cloud&key=CLAVE_DE_LA_API
+```
+
+Parámetros: `url` (dirección de la API), `key` (se envía como `X-API-Key`) y `salad` (se envía como `Salad-Api-Key`). La página los lee, conecta sola, y **borra el `#…` de la barra de direcciones** para que la clave no quede en el historial. Lo que va después de `#` no se envía a ningún servidor.
+
+Usa una clave de la API (`TTS_API_KEY`), no la clave de tu cuenta de Salad: así, si el enlace se filtra, solo se puede generar audio y no tocar tu cuenta. Comparte el enlace por un canal privado, no lo pegues en el repositorio ni en una página pública.
+
 ## Sobre las claves
 
 - Las claves que escribes en la página **no se guardan en ningún servidor**: se envían solo a la dirección que pongas.
